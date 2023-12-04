@@ -1,14 +1,8 @@
-# AOC 2023 - Index
-
-## Section
-
 ### Advent of Code 2023
 
 #### Index
 
-Requires Livebook v0.5+.
-
-* [Day 1](day1.livemd)
-* [Day 2](day2.livemd)
-* [Day 3](day3.livemd)
-* [Day 4](day4.livemd)
+- [Day 1](day1.livemd)
+- [Day 2](day2.livemd)
+- [Day 3](day3.livemd)
+- [Day 4](day4.livemd)
