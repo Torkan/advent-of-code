@@ -1,0 +1,106 @@
+# AOC 2023 - Day 4
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Input
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "4", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Day 4 Implementation
+
+```elixir
+defmodule Day4 do
+  def parse_card(card_string) do
+    ["Card" <> card_id_string, card_number_string] = String.split(card_string, ": ")
+    [card_numbers_string, winning_numbers_string] = String.split(card_number_string, " | ")
+
+    card_numbers =
+      card_numbers_string
+      |> String.split()
+
+    winning_numbers =
+      winning_numbers_string
+      |> String.split()
+
+    matching_numbers =
+      MapSet.intersection(
+        MapSet.new(card_numbers),
+        MapSet.new(winning_numbers)
+      )
+
+    no_of_matches = MapSet.size(matching_numbers)
+
+    points =
+      case no_of_matches do
+        0 ->
+          0
+
+        1 ->
+          1
+
+        num ->
+          0..(num - 2)
+          |> Enum.reduce(1, fn _num, acc -> acc * 2 end)
+      end
+
+    card_id = String.trim(card_id_string) |> String.to_integer()
+
+    won_card_ids =
+      case no_of_matches do
+        0 ->
+          []
+
+        1 ->
+          [card_id + 1]
+
+        _ ->
+          1..no_of_matches
+          |> Enum.map(fn num -> card_id + num end)
+      end
+
+    %{
+      card_id: card_id,
+      card_numbers: card_numbers,
+      winning_numbers: winning_numbers,
+      matching_numbers: matching_numbers,
+      points: points,
+      won_card_ids: won_card_ids
+    }
+  end
+
+  def get_all_won_cards(card, all_cards) do
+    won_cards = Enum.filter(all_cards, fn c -> c.card_id in card.won_card_ids end)
+    [card | Enum.map(won_cards, fn c -> get_all_won_cards(c, all_cards) end)]
+  end
+end
+
+cards =
+  puzzle_input
+  |> String.split("\n")
+  |> Enum.filter(fn line -> line != "" end)
+  |> Enum.map(fn line -> Day4.parse_card(line) end)
+```
+
+## Part 1 - Solution
+
+```elixir
+Enum.reduce(cards, 0, fn card, acc -> acc + card.points end)
+```
+
+## Part 2 - Solution
+
+```elixir
+cards
+|> Enum.map(fn card -> Day4.get_all_won_cards(card, cards) end)
+|> List.flatten()
+|> length
+```
+
+<!-- livebook:{"offset":2079,"stamp":{"token":"XCP.SUKJb_mpIUSRbH1tsyQL6JvY-JGNj-l_mfSY2nqrQObPMfl8-JD3aR8h5sHqNT_-_HkU2zsVRyGMAEuXwrWzpQel0_R0dsZ-b_9fwPS1WR-L3fXxEg8","version":2}} -->

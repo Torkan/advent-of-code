@@ -1,0 +1,80 @@
+# AOC 2023 - Day 1
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Input
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "1", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Part 1 - Solution
+
+```elixir
+puzzle_input
+|> String.split()
+|> Enum.reduce(0, fn line, acc ->
+  numbers =
+    line
+    |> String.replace(~r/[^\d]/, "")
+
+  calibration_value =
+    "#{String.at(numbers, 0)}#{String.at(numbers, -1)}"
+    |> String.to_integer()
+
+  acc + calibration_value
+end)
+```
+
+## Part 2 - Solution
+
+```elixir
+defmodule Day1Part2 do
+  def starts_with_number("one" <> _rem), do: {"1", true}
+  def starts_with_number("two" <> _rem), do: {"2", true}
+  def starts_with_number("three" <> _rem), do: {"3", true}
+  def starts_with_number("four" <> _rem), do: {"4", true}
+  def starts_with_number("five" <> _rem), do: {"5", true}
+  def starts_with_number("six" <> _rem), do: {"6", true}
+  def starts_with_number("seven" <> _rem), do: {"7", true}
+  def starts_with_number("eight" <> _rem), do: {"8", true}
+  def starts_with_number("nine" <> _rem), do: {"9", true}
+  def starts_with_number("1" <> _rem), do: {"1", true}
+  def starts_with_number("2" <> _rem), do: {"2", true}
+  def starts_with_number("3" <> _rem), do: {"3", true}
+  def starts_with_number("4" <> _rem), do: {"4", true}
+  def starts_with_number("5" <> _rem), do: {"5", true}
+  def starts_with_number("6" <> _rem), do: {"6", true}
+  def starts_with_number("7" <> _rem), do: {"7", true}
+  def starts_with_number("8" <> _rem), do: {"8", true}
+  def starts_with_number("9" <> _rem), do: {"9", true}
+  def starts_with_number(string), do: {string, false}
+
+  def string_to_numbers(line) do
+    Enum.reduce(0..(String.length(line) - 1), "", fn idx, acc ->
+      {_start, remainder} = String.split_at(line, idx)
+      {number, match_found} = starts_with_number(remainder)
+      if match_found, do: acc <> number, else: acc
+    end)
+  end
+end
+
+puzzle_input
+|> String.split()
+|> Enum.map(fn line ->
+  numbers_string =
+    Day1Part2.string_to_numbers(line)
+    |> String.replace(~r/[^\d]/, "")
+
+  "#{String.at(numbers_string, 0)}#{String.at(numbers_string, -1)}"
+  |> String.to_integer()
+end)
+|> Enum.sum()
+```
+
+<!-- livebook:{"offset":2173,"stamp":{"token":"XCP.X8SqvADugMdYF9qLMIEgNJ5mPRBJwp81L_k3nXD5R_IeYE1UIcR8ccG4CxTfi5Rn7SD01XiFLsIv4QzjB71aoHdi09s9EZqO8KvqHxtmQ5ZucD69kEo","version":2}} -->

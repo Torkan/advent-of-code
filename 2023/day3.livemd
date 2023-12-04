@@ -1,0 +1,179 @@
+# AOC 2023 - Day 3
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Input
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "3", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Day 3 Code
+
+```elixir
+defmodule Day3 do
+  def build_matrix_entry(""), do: []
+  def build_matrix_entry(<<c>> <> rest), do: [<<c>> | build_matrix_entry(rest)]
+
+  def is_next_to_symbol(number, matrix) do
+    same_row = [{number.row_idx, number.start_pos - 1}, {number.row_idx, number.end_pos + 1}]
+    range = max(number.start_pos - 1, 0)..(number.end_pos + 1)
+
+    row_above =
+      if number.row_idx > 0,
+        do: Enum.map(range, fn pos -> {number.row_idx - 1, pos} end),
+        else: []
+
+    row_below = Enum.map(range, fn pos -> {number.row_idx + 1, pos} end)
+
+    all_adjacent_coords = same_row ++ row_above ++ row_below
+
+    Enum.any?(all_adjacent_coords, fn {row_idx, pos} ->
+      row = Enum.at(matrix, row_idx)
+
+      if row do
+        Enum.at(row, pos) not in [nil, ".", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+      else
+        false
+      end
+    end)
+  end
+
+  def get_adjacent_numbers(row_idx, pos, all_numbers) do
+    relevant_row_indices = [row_idx - 1, row_idx, row_idx + 1]
+
+    Enum.filter(all_numbers, fn number ->
+      number_pos_range = (number.start_pos - 1)..(number.end_pos + 1)
+      number.row_idx in relevant_row_indices and pos in number_pos_range
+    end)
+  end
+end
+
+matrix =
+  puzzle_input
+  |> String.split("\n")
+  |> Enum.map(&Day3.build_matrix_entry/1)
+
+# Find all the numbers present in the matrix
+{_row_idx, all_numbers} =
+  Enum.reduce(matrix, {0, []}, fn row, {row_idx, numbers} ->
+    accumulator = %{
+      current_number: %{
+        start_pos: nil,
+        end_pos: nil,
+        digits: "",
+        row_idx: row_idx
+      },
+      numbers: [],
+      current_pos: 0
+    }
+
+    row_data =
+      Enum.reduce(row, accumulator, fn cell, acc ->
+        cond do
+          cell in ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] ->
+            if acc.current_number.start_pos != nil do
+              # We are adding to an existing number
+              Map.merge(acc, %{
+                current_number: %{acc.current_number | digits: acc.current_number.digits <> cell},
+                current_pos: acc.current_pos + 1
+              })
+            else
+              # We encountered a new number
+              Map.merge(acc, %{
+                current_number: %{acc.current_number | digits: cell, start_pos: acc.current_pos},
+                current_pos: acc.current_pos + 1
+              })
+            end
+
+          true ->
+            if acc.current_number.start_pos != nil do
+              # We found the end of a number
+              Map.merge(acc, %{
+                current_number: %{start_pos: nil, end_pos: nil, digits: "", row_idx: row_idx},
+                numbers: [%{acc.current_number | end_pos: acc.current_pos - 1} | acc.numbers],
+                current_pos: acc.current_pos + 1
+              })
+            else
+              # We're not building a number, move on
+              Map.merge(acc, %{
+                current_pos: acc.current_pos + 1
+              })
+            end
+        end
+      end)
+
+    row_numbers =
+      if row_data.current_number.start_pos != nil do
+        # Add left-over number if the row ended on a digit.
+        [%{row_data.current_number | end_pos: row_data.current_pos} | row_data.numbers]
+      else
+        row_data.numbers
+      end
+
+    {row_idx + 1, [row_numbers | numbers]}
+  end)
+
+numbers = List.flatten(all_numbers)
+```
+
+## Part 1 - Solution
+
+```elixir
+numbers
+|> Enum.filter(fn number ->
+  Day3.is_next_to_symbol(number, matrix)
+end)
+|> Enum.reduce(0, fn number, acc ->
+  acc + String.to_integer(number.digits)
+end)
+```
+
+## Part 2 - Solution
+
+```elixir
+# Loop over every cell, if the cell is a "*", check if we have two adjacent numbers,
+# and add them if so
+{_idx, adjacent_numbers_pr_row} =
+  Enum.reduce(matrix, {0, []}, fn row, {row_idx, all_adjacent_numbers} ->
+    {_pos, adjacent_row_numbers} =
+      Enum.reduce(row, {0, []}, fn cell, {pos, adjacent_row_numbers} ->
+        if cell == "*" do
+          res = Day3.get_adjacent_numbers(row_idx, pos, numbers)
+
+          if length(res) == 2 do
+            {pos + 1, [res | adjacent_row_numbers]}
+          else
+            {pos + 1, adjacent_row_numbers}
+          end
+        else
+          {pos + 1, adjacent_row_numbers}
+        end
+      end)
+
+    {row_idx + 1, [adjacent_row_numbers | all_adjacent_numbers]}
+  end)
+
+Enum.reduce(adjacent_numbers_pr_row, 0, fn row_numbers, acc ->
+  res =
+    Enum.reduce(row_numbers, 0, fn numbers, acc ->
+      if length(numbers) == 2 do
+        digit_1 = Enum.at(numbers, 0).digits |> String.to_integer()
+        digit_2 = Enum.at(numbers, 1).digits |> String.to_integer()
+
+        acc + digit_1 * digit_2
+      else
+        acc
+      end
+    end)
+
+  acc + res
+end)
+```
+
+<!-- livebook:{"offset":4874,"stamp":{"token":"XCP.SClGbPVdKw89wUZukupZZ21E8hi4cR2j5D7Xyvq28vuHBikDFNrFrMZ1sLrRmPJZ6PIyahhoS9LPozN8KV2xkCxSD4eHyZDdyfWQMZy4-flGKUrWBgo","version":2}} -->

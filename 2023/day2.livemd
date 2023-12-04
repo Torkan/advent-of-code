@@ -1,0 +1,81 @@
+# AOC 2023 - Day 2
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Input
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "2", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Code
+
+```elixir
+defmodule Day2Part1 do
+  def parse_cube_data(cube_data) do
+    [number, color] = String.split(cube_data)
+    {color, String.to_integer(number)}
+  end
+
+  def parse_game(line) do
+    ["Game " <> game_id, rounds_string] = String.split(line, ": ")
+
+    game_data =
+      rounds_string
+      |> String.split("; ")
+      |> Enum.map(fn round ->
+        # Parse the number of cubes seen in each round
+        String.split(round, ",")
+        |> Enum.map(fn cube_data -> parse_cube_data(cube_data) end)
+        |> Enum.reduce(%{"red" => 0, "green" => 0, "blue" => 0}, fn {color, number}, acc ->
+          if acc[color] < number, do: Map.put(acc, color, number), else: acc
+        end)
+      end)
+      |> Enum.reduce(%{"red" => 0, "green" => 0, "blue" => 0}, fn round_data, acc ->
+        # Store the highest seen amount of cubes for each color in a game
+        largest_red = Enum.max([round_data["red"], acc["red"]])
+        largest_green = Enum.max([round_data["green"], acc["green"]])
+        largest_blue = Enum.max([round_data["blue"], acc["blue"]])
+
+        %{"red" => largest_red, "green" => largest_green, "blue" => largest_blue}
+      end)
+
+    Map.put(game_data, "id", String.to_integer(game_id))
+  end
+end
+```
+
+## Part 1 - Solution
+
+```elixir
+puzzle_input
+|> String.split("\n")
+|> Enum.filter(fn line -> String.length(line) > 0 end)
+|> Enum.map(&Day2Part1.parse_game/1)
+|> Enum.filter(fn game_data ->
+  # Max 12 red cubes, 13 green cubes, and 14 blue cubes.
+  game_data["red"] <= 12 and game_data["green"] <= 13 and game_data["blue"] <= 14
+end)
+|> Enum.reduce(0, fn game_data, acc ->
+  game_data["id"] + acc
+end)
+```
+
+## Part 2 - Solution
+
+```elixir
+puzzle_input
+|> String.split("\n")
+|> Enum.filter(fn line -> String.length(line) > 0 end)
+|> Enum.map(&Day2Part1.parse_game/1)
+|> Enum.reduce(0, fn game_data, acc ->
+  game_data["red"] * game_data["green"] * game_data["blue"] + acc
+end)
+```
+
+<!-- livebook:{"offset":2113,"stamp":{"token":"XCP.zmLivrlQ-agHPsBQ4s5-2yApRhT2p5M7aDgmixmGz5GS1W3-G_YH5-hCUyoTk_tmiyT0qqKwvq4PBsTxrlE4gMklkgT0IVKorI6rJwkgfJHZDELzWgQ","version":2}} -->
