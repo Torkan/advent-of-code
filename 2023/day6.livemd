@@ -1,0 +1,83 @@
+# AOC 2023 - Day 6
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Input
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "6", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Code
+
+```elixir
+data =
+  puzzle_input
+  |> String.split("\n")
+  |> Enum.map(fn str ->
+    str
+    |> String.split()
+    |> Enum.drop(1)
+    |> Enum.map(&String.to_integer/1)
+  end)
+  |> Enum.zip()
+```
+
+## Part 1
+
+```elixir
+new_records =
+  Enum.map(data, fn {time, record} ->
+    1..(time - 1)
+    |> Enum.reduce([], fn time_to_hold, acc ->
+      remaining_time = time - time_to_hold
+      length = time_to_hold * remaining_time
+
+      if length > record do
+        [length | acc]
+      else
+        acc
+      end
+    end)
+  end)
+
+ways_to_beat =
+  new_records
+  |> Enum.map(&Enum.count/1)
+
+Enum.reduce(ways_to_beat, nil, fn num, acc ->
+  if acc do
+    acc * num
+  else
+    num
+  end
+end)
+```
+
+## Part 2
+
+```elixir
+[time, record] =
+  puzzle_input
+  |> String.split("\n")
+  |> Enum.map(fn str ->
+    str
+    |> String.split()
+    |> Enum.drop(1)
+    |> Enum.join()
+    |> String.to_integer()
+  end)
+
+Enum.reduce(1..(time - 1), 0, fn time_to_hold, acc ->
+  remaining_time = time - time_to_hold
+  length = time_to_hold * remaining_time
+  if length > record, do: acc + 1, else: acc
+end)
+```
+
+<!-- livebook:{"offset":1287,"stamp":{"token":"XCP.abSbLchAkAF5FJMAUynL47tw2ngidiKZXs69fTFWoIpZjUai9Va8HqfrDDJ0MiX4YRWBJmeXTBv2L0cF-PMhoihGECob0nMVTBfNdSpOcKQ7puikhww","version":2}} -->

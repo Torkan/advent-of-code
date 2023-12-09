@@ -1,0 +1,297 @@
+# AOC 2023 - Day 7
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Input
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "7", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Code
+
+```elixir
+data =
+  puzzle_input
+  |> String.split("\n")
+  |> Enum.filter(&(&1 != ""))
+
+defmodule Day6 do
+  def parse_hand(hand_string) do
+    [card_str, bid_str] = String.split(hand_string)
+    bid = String.to_integer(bid_str)
+    cards = parse_card_string(card_str)
+
+    Map.put(cards, :bid, bid)
+  end
+
+  def get_card_value("2"), do: 2
+  def get_card_value("3"), do: 3
+  def get_card_value("4"), do: 4
+  def get_card_value("5"), do: 5
+  def get_card_value("6"), do: 6
+  def get_card_value("7"), do: 7
+  def get_card_value("8"), do: 8
+  def get_card_value("9"), do: 9
+  def get_card_value("T"), do: 10
+  def get_card_value("J"), do: 11
+  def get_card_value("Q"), do: 12
+  def get_card_value("K"), do: 13
+  def get_card_value("A"), do: 14
+  def get_card_value(_), do: throw("OOPS")
+
+  def parse_card_string(card_str) do
+    card_values =
+      0..4
+      |> Enum.map(fn num ->
+        card = String.at(card_str, num)
+        get_card_value(card)
+      end)
+
+    hand_score = get_hand_score(card_values)
+    %{cards: card_values, hand_score: hand_score}
+  end
+
+  def parse_joker_hand(hand_string) do
+    [card_str, bid_str] = String.split(hand_string)
+    bid = String.to_integer(bid_str)
+    cards = parse_joker_card_string(card_str)
+    Map.put(cards, :bid, bid)
+  end
+
+  def parse_joker_card_string(card_str) do
+    card_values =
+      0..4
+      |> Enum.map(fn num ->
+        card = String.at(card_str, num)
+        card_value = get_card_value(card)
+        if card_value == 11, do: 1, else: card_value
+      end)
+
+    hand_score = get_joker_hand_score(card_values)
+    %{cards: card_values, hand_score: hand_score}
+  end
+
+  def get_hand_score(card_values) do
+    cards =
+      Enum.reduce(card_values, %{}, fn card_value, acc ->
+        Map.update(acc, card_value, 1, &(&1 + 1))
+      end)
+      |> Map.values()
+
+    cond do
+      length(cards) == 1 -> 7
+      Enum.any?(cards, &(&1 == 4)) -> 6
+      Enum.any?(cards, &(&1 == 3)) and Enum.any?(cards, &(&1 == 2)) -> 5
+      Enum.any?(cards, &(&1 == 3)) -> 4
+      length(Enum.filter(cards, &(&1 == 2))) == 2 -> 3
+      Enum.any?(cards, &(&1 == 2)) -> 2
+      length(cards) == 5 -> 1
+    end
+  end
+
+  def get_joker_hand_score(card_values) do
+    number_of_joker_cards =
+      card_values
+      |> Enum.filter(&(&1 == 1))
+      |> Enum.count()
+
+    joker_hand =
+      card_values
+      |> build_best_hand(number_of_joker_cards)
+
+    score =
+      joker_hand
+      |> get_hand_score
+
+    score
+  end
+
+  def build_best_hand(card_values, 0), do: card_values
+
+  def build_best_hand(card_values, 1) do
+    card_value_map =
+      card_values
+      |> Enum.filter(&(&1 != 1))
+      |> Enum.reduce(%{}, fn card_value, acc ->
+        Map.update(acc, card_value, 1, &(&1 + 1))
+      end)
+
+    card_counts = Map.values(card_value_map)
+
+    cond do
+      length(card_counts) == 1 ->
+        # We have four of a kind, make it into five of a kind
+        cv = Enum.find(card_values, &(&1 != 1))
+        [cv, cv, cv, cv, cv]
+
+      Enum.any?(card_counts, &(&1 == 3)) ->
+        # We have three of a kind, make it into four of a kind
+        {cv, _} = Enum.find(card_value_map, fn {cv, count} -> count == 3 end)
+        Enum.map(card_values, fn c -> if c == 1, do: cv, else: c end)
+
+      length(Enum.filter(card_counts, &(&1 == 2))) == 2 ->
+        # We have two pair, make it into a full house
+        cv = Enum.find(card_values, &(&1 != 1))
+        Enum.map(card_values, fn c -> if c == 1, do: cv, else: c end)
+
+      Enum.any?(card_counts, &(&1 == 2)) ->
+        # We have one pair, make it into three of a kind
+        {cv, _} = Enum.find(card_value_map, fn {_cv, count} -> count == 2 end)
+        Enum.map(card_values, fn c -> if c == 1, do: cv, else: c end)
+
+      true ->
+        # We have four distinct cards, create hand with one pair
+        cv = Enum.find(card_values, &(&1 != 1))
+        Enum.map(card_values, fn c -> if c == 1, do: cv, else: c end)
+    end
+  end
+
+  def build_best_hand(card_values, 2) do
+    card_value_map =
+      card_values
+      |> Enum.filter(&(&1 != 1))
+      |> Enum.reduce(%{}, fn card_value, acc ->
+        Map.update(acc, card_value, 1, &(&1 + 1))
+      end)
+
+    card_counts = Map.values(card_value_map)
+
+    cond do
+      length(card_counts) == 1 ->
+        # We have three of a kind, make it five of a kind
+        cv = Enum.find(card_values, &(&1 != 1))
+        [cv, cv, cv, cv, cv]
+
+      Enum.any?(card_counts, &(&1 == 2)) ->
+        # We have one pair, make it into four of a kind
+        {card_value, _count} = Enum.find(card_value_map, fn {_cv, count} -> count == 2 end)
+        Enum.map(card_values, fn cv -> if cv == 1, do: card_value, else: cv end)
+
+      true ->
+        # We have three distinct cards, make the hand three of a kind
+        card_value = Enum.find(card_values, &(&1 != 1))
+        Enum.map(card_values, fn cv -> if cv == 1, do: card_value, else: cv end)
+    end
+  end
+
+  def build_best_hand(card_values, 3) do
+    card_counts =
+      card_values
+      |> Enum.filter(&(&1 != 1))
+      |> Enum.reduce(%{}, fn card_value, acc ->
+        Map.update(acc, card_value, 1, &(&1 + 1))
+      end)
+      |> Map.values()
+
+    if length(card_counts) == 1 do
+      # We have one pair, so make the hand five of a kind
+      [card_value, _] = Enum.filter(card_values, &(&1 != 1))
+      [card_value, card_value, card_value, card_value, card_value]
+    else
+      # We have two distinct cards, make the hand four of a kind
+      [card_value, _] = Enum.filter(card_values, &(&1 != 1))
+      Enum.map(card_values, fn v -> if v == 1, do: card_value, else: v end)
+    end
+  end
+
+  def build_best_hand(card_values, 4) do
+    # Make five of a kind with the remaining card
+    [num] = Enum.filter(card_values, &(&1 != 1))
+    [num, num, num, num, num]
+  end
+
+  def build_best_hand(_card_values, 5) do
+    # Build five of a kind
+    [14, 14, 14, 14, 14]
+  end
+
+  def compare_value(:lt, _, _), do: :lt
+  def compare_value(:gt, _, _), do: :gt
+
+  def compare_value(:eq, a, b) do
+    cond do
+      a == b -> :eq
+      a < b -> :lt
+      true -> :gt
+    end
+  end
+
+  def get_best_hand(hand_a, hand_b) do
+    :eq
+    |> compare_value(hand_a.hand_score, hand_b.hand_score)
+    |> compare_value(Enum.at(hand_a.cards, 0), Enum.at(hand_b.cards, 0))
+    |> compare_value(Enum.at(hand_a.cards, 1), Enum.at(hand_b.cards, 1))
+    |> compare_value(Enum.at(hand_a.cards, 2), Enum.at(hand_b.cards, 2))
+    |> compare_value(Enum.at(hand_a.cards, 3), Enum.at(hand_b.cards, 3))
+    |> compare_value(Enum.at(hand_a.cards, 4), Enum.at(hand_b.cards, 4))
+  end
+end
+```
+
+## Part 1
+
+```elixir
+ranked_hands =
+  data
+  |> Enum.map(&Day6.parse_hand(&1))
+  |> Enum.sort(fn hand_a, hand_b ->
+    case Day6.get_best_hand(hand_a, hand_b) do
+      :eq ->
+        IO.inspect({hand_a, hand_b})
+        throw("OOPS")
+
+      :lt ->
+        true
+
+      :gt ->
+        false
+    end
+  end)
+  |> Enum.with_index(fn hand, rank ->
+    {hand, rank + 1}
+  end)
+
+Enum.reduce(ranked_hands, 0, fn {hand, rank}, total_winnings ->
+  hand_winnings = hand.bid * rank
+  total_winnings + hand_winnings
+end)
+```
+
+## Part 2
+
+```elixir
+ranked_hands =
+  data
+  |> Enum.map(&Day6.parse_joker_hand(&1))
+  |> Enum.sort(fn hand_a, hand_b ->
+    case Day6.get_best_hand(hand_a, hand_b) do
+      :lt ->
+        true
+
+      :gt ->
+        false
+    end
+  end)
+  |> Enum.with_index(fn hand, rank ->
+    {hand, rank + 1}
+  end)
+
+Enum.each(ranked_hands, fn {hand, _rank} ->
+  if not Enum.all?(hand.cards, fn c -> is_number(c) end), do: throw("OOPS")
+end)
+
+IO.inspect(ranked_hands)
+
+Enum.reduce(ranked_hands, 0, fn {hand, rank}, total_winnings ->
+  hand_winnings = hand.bid * rank
+  total_winnings + hand_winnings
+end)
+```
+
+<!-- livebook:{"offset":7843,"stamp":{"token":"XCP._NCkXuknV2VvP3LhCOvI_pi6uIrDTLPiYkuviNIw2wCPWGTuGbnzTshuzYR2SM-1xx0l92zavIUze2fuzo4A7uHzLPJJWfuP9N1Z22fJoEtJQBY1Sgg","version":2}} -->

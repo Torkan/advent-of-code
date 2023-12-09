@@ -1,0 +1,155 @@
+# AOC 2023 - Day 8
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Input
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "8", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Code
+
+```elixir
+data =
+  puzzle_input
+  |> String.split("\n")
+  |> Enum.filter(&(&1 != ""))
+
+{[directions_str], node_map_strings} = Enum.split(data, 1)
+
+directions = String.graphemes(directions_str)
+
+[start_node] = Enum.at(node_map_strings, 0) |> String.split(" = ") |> Enum.take(1)
+
+node_map =
+  Enum.reduce(node_map_strings, %{}, fn mapping, acc ->
+    [start_node, dest_node_str] = String.split(mapping, " = ")
+
+    [left, right] =
+      dest_node_str
+      |> String.trim("(")
+      |> String.trim(")")
+      |> String.split(", ")
+
+    Map.put(acc, start_node, %{left: left, right: right})
+  end)
+
+defmodule Day8 do
+  def traverse_directions(directions, node_map, current_node, step_count) do
+    Enum.reduce(directions, {step_count, current_node}, fn dir, {step_count, current_node} ->
+      node = Map.get(node_map, current_node)
+      if dir == "L", do: {step_count + 1, node.left}, else: {step_count + 1, node.right}
+    end)
+  end
+
+  def traverse_directions_until_at_end(directions, node_map, current_node, step_count) do
+    {current_step_count, current_end_node} =
+      traverse_directions(directions, node_map, current_node, step_count)
+
+    if current_end_node === "ZZZ",
+      do: current_step_count,
+      else:
+        traverse_directions_until_at_end(
+          directions,
+          node_map,
+          current_end_node,
+          current_step_count
+        )
+  end
+
+  def analyze_ghost_path(
+        directions,
+        node_map,
+        start_node,
+        current_node,
+        found_z_nodes,
+        loop_length
+      ) do
+    {loop_length, found_z_nodes, current_node} =
+      Enum.reduce(
+        directions,
+        {loop_length, found_z_nodes, current_node},
+        fn dir, {loop_length, found_z_nodes, current_node} ->
+          if current_node == start_node && loop_length != 0 do
+            {loop_length, found_z_nodes, current_node}
+          else
+            node = Map.get(node_map, current_node)
+            next_node = if dir == "L", do: node.left, else: node.right
+            current_pos = loop_length + 1
+
+            found_z_nodes =
+              if String.ends_with?(next_node, "Z"),
+                do: found_z_nodes ++ [current_pos],
+                else: found_z_nodes
+
+            {current_pos, found_z_nodes, next_node}
+          end
+        end
+      )
+
+    if current_node == start_node or loop_length > 100_000,
+      do: {loop_length, found_z_nodes, current_node},
+      else:
+        analyze_ghost_path(
+          directions,
+          node_map,
+          start_node,
+          current_node,
+          found_z_nodes,
+          loop_length
+        )
+  end
+
+  def find_first_common_denominator(z_node_step_counts, start_length, current_length) do
+    if Enum.all?(z_node_step_counts, fn count -> rem(current_length, count) == 0 end),
+      do: current_length,
+      else:
+        find_first_common_denominator(
+          z_node_step_counts,
+          start_length,
+          current_length + start_length
+        )
+  end
+
+  def find_matching_step_count(start_step_count, current_step_count, z_count) do
+    if rem(current_step_count, z_count) == 0 do
+      current_step_count
+    else
+      find_matching_step_count(start_step_count, current_step_count + start_step_count, z_count)
+    end
+  end
+end
+```
+
+## Part 1
+
+```elixir
+Day8.traverse_directions_until_at_end(directions, node_map, start_node, 0)
+```
+
+## Part 2
+
+```elixir
+starting_ghost_nodes =
+  node_map
+  |> Map.keys()
+  |> Enum.filter(fn node_name -> String.ends_with?(node_name, "A") end)
+
+z_node_step_counts =
+  Enum.map(starting_ghost_nodes, fn n ->
+    {_, z_nodes, _} = Day8.analyze_ghost_path(directions, node_map, n, n, [], 0)
+    Enum.at(z_nodes, 0)
+  end)
+
+Enum.reduce(z_node_step_counts |> Enum.drop(1), Enum.at(z_node_step_counts, 0), fn c, acc ->
+  Day8.find_matching_step_count(acc, acc, c)
+end)
+```
+
+<!-- livebook:{"offset":4024,"stamp":{"token":"XCP.Yp47bUvxS6XE-bM4KyNH0r38vZNNsvktjVF7LR35njmULHxeiZeiig8E-VBBfIv5P9nVIl-wEe7WTrtaROjwt87faX1RLWmuyc061gg7IxdAI2NRATw","version":2}} -->

@@ -1,0 +1,163 @@
+# AOC 2023 - Day 5
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Input
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "5", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Code
+
+```elixir
+defmodule Day5Final do
+  def parse_map_string(map_strings) do
+    %{maps: maps} =
+      Enum.reduce(map_strings, %{current_map: nil, maps: %{}}, fn string, acc ->
+        cond do
+          string == "" ->
+            %{acc | current_map: nil}
+
+          String.contains?(string, "map") ->
+            [map_name, _map] = String.split(string, " ")
+            %{acc | current_map: map_name}
+
+          true ->
+            [d, s, i] = String.split(string) |> Enum.map(&String.to_integer/1)
+            %{acc | maps: Map.update(acc.maps, acc.current_map, [{d, s, i}], &[{d, s, i} | &1])}
+        end
+      end)
+
+    maps
+  end
+
+  def seed_to_location(seed, ranges_map) do
+    seed
+    |> find_destination(ranges_map["seed-to-soil"])
+    |> find_destination(ranges_map["soil-to-fertilizer"])
+    |> find_destination(ranges_map["fertilizer-to-water"])
+    |> find_destination(ranges_map["water-to-light"])
+    |> find_destination(ranges_map["light-to-temperature"])
+    |> find_destination(ranges_map["temperature-to-humidity"])
+    |> find_destination(ranges_map["humidity-to-location"])
+  end
+
+  def find_destination(src, ranges) do
+    destination =
+      Enum.reduce_while(ranges, nil, fn {d, s, i}, acc ->
+        if s <= src and src <= s + i - 1 do
+          diff = src - s
+          {:halt, d + diff}
+        else
+          {:cont, acc}
+        end
+      end)
+
+    destination || src
+  end
+
+  def map_src_value_to_dest({src_start, src_end}, _range = {d, s, _i}) do
+    offset = d - s
+    {src_start + offset, src_end + offset}
+  end
+
+  def map_src_range_to_dest_range(src_range, range) do
+    case find_overlap(src_range, range) do
+      nil ->
+        [src_range]
+
+      {overlap_start, overlap_end} ->
+        {src_start, src_end} = src_range
+
+        start =
+          if src_start < overlap_start, do: {src_start, overlap_start - 1}
+
+        rest = if overlap_end < src_end, do: {overlap_end + 1, src_end}
+        [start, {overlap_start, overlap_end}, rest] |> Enum.filter(&(&1 != nil))
+    end
+  end
+
+  def find_overlap({src_start, src_end}, {_d, s, i}) do
+    overlap_start = max(src_start, s)
+    overlap_end = min(s + i - 1, src_end)
+    if overlap_start < overlap_end, do: {overlap_start, overlap_end}, else: nil
+  end
+end
+
+lines = String.split(puzzle_input, "\n")
+
+{["seeds: " <> seed_string], ["" | map_strings]} = Enum.split(lines, 1)
+
+ranges_map = Day5Final.parse_map_string(map_strings)
+```
+
+## Part 1
+
+```elixir
+seeds_to_be_planted =
+  seed_string
+  |> String.split()
+  |> Enum.map(&String.to_integer/1)
+
+Enum.map(seeds_to_be_planted, fn seed ->
+  Day5Final.seed_to_location(seed, ranges_map)
+end)
+|> Enum.min()
+```
+
+## Part 2
+
+```elixir
+all_mappings =
+  [
+    ranges_map["seed-to-soil"],
+    ranges_map["soil-to-fertilizer"],
+    ranges_map["fertilizer-to-water"],
+    ranges_map["water-to-light"],
+    ranges_map["light-to-temperature"],
+    ranges_map["temperature-to-humidity"],
+    ranges_map["humidity-to-location"]
+  ]
+  |> Enum.map(fn ranges ->
+    ranges
+    |> Enum.sort_by(fn {_, s, _} -> s end)
+  end)
+
+seed_ranges =
+  seed_string
+  |> String.split()
+  |> Enum.map(&String.to_integer/1)
+  |> Enum.chunk_every(2)
+  |> Enum.map(fn [start, interval] -> {start, start + interval - 1} end)
+
+Enum.reduce(all_mappings, seed_ranges, fn dest_ranges, src_ranges ->
+  split_src_ranges =
+    Enum.map(src_ranges, fn src_range ->
+      Enum.reduce(dest_ranges, [src_range], fn range, acc ->
+        last_range = Enum.at(acc, -1)
+        remaining = Enum.drop(acc, -1)
+        remaining ++ Day5Final.map_src_range_to_dest_range(last_range, range)
+      end)
+    end)
+    |> List.flatten()
+
+  Enum.map(split_src_ranges, fn src_range ->
+    dest_range = Enum.find(dest_ranges, &Day5Final.find_overlap(src_range, &1))
+
+    if dest_range,
+      do: Day5Final.map_src_value_to_dest(src_range, dest_range),
+      else: src_range
+  end)
+end)
+|> Enum.sort_by(&elem(&1, 0))
+|> List.first()
+|> elem(0)
+```
+
+<!-- livebook:{"offset":4128,"stamp":{"token":"XCP.fPyKovu3-wQ4MbBufapkowHfUF0HakPgd3_tt49np8h9UTj0U-7tNaJD2_8zh3VrmhtVtkg2REK8P-lxNPzABlMC2R0OfqM9yE2DDzbp26fnuUsCvbs","version":2}} -->

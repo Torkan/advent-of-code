@@ -1,0 +1,106 @@
+# AOC 2023 - Day 9
+
+```elixir
+Mix.install([
+  {:kino_aoc, "~> 0.1"}
+])
+```
+
+## Input
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "9", System.fetch_env!("LB_AOC_SESSION"))
+
+test_input = """
+0 3 6 9 12 15
+1 3 6 10 15 21
+10 13 16 21 30 45
+"""
+```
+
+## Code
+
+```elixir
+sequences =
+  puzzle_input
+  |> String.split("\n")
+  |> Enum.filter(&(&1 != ""))
+  |> Enum.map(fn line ->
+    line
+    |> String.split()
+    |> Enum.map(&String.to_integer(&1))
+  end)
+
+defmodule Day9 do
+  def get_step_differences(numbers, current_diffs) do
+    if Enum.all?(numbers, &(&1 == 0)) do
+      current_diffs ++ [numbers]
+    else
+      last_idx = length(numbers) - 2
+
+      differences =
+        0..last_idx
+        |> Enum.map(fn idx ->
+          current = Enum.at(numbers, idx)
+          next = Enum.at(numbers, idx + 1)
+          next - current
+        end)
+
+      get_step_differences(differences, current_diffs ++ [numbers])
+    end
+  end
+
+  def extrapolate_next_step([], processed), do: processed
+
+  def extrapolate_next_step(sequences, []) do
+    {rest, [last]} = Enum.split(sequences, -1)
+    extrapolate_next_step(rest, [[0 | last]])
+  end
+
+  def extrapolate_next_step(sequences, processed) do
+    {rest, [last]} = Enum.split(sequences, -1)
+    last_number = List.last(last)
+
+    number_to_add = processed |> List.first() |> List.last()
+
+    extrapolate_next_step(rest, [last ++ [last_number + number_to_add] | processed])
+  end
+end
+```
+
+## Part 1 - Solution
+
+```elixir
+sequences_with_differences =
+  sequences
+  |> Enum.map(fn seq ->
+    Day9.get_step_differences(seq, [])
+  end)
+
+Enum.map(sequences_with_differences, fn seq ->
+  Day9.extrapolate_next_step(seq, [])
+  |> List.first()
+  |> List.last()
+end)
+|> Enum.sum()
+```
+
+## Part 2 - Solution
+
+```elixir
+sequences_with_differences =
+  sequences
+  |> Enum.map(fn seq ->
+    Day9.get_step_differences(Enum.reverse(seq), [])
+  end)
+
+Enum.map(sequences_with_differences, fn seq ->
+  Day9.extrapolate_next_step(seq, [])
+  |> List.first()
+  |> List.last()
+end)
+|> Enum.sum()
+```
+
+<!-- livebook:{"offset":2033,"stamp":{"token":"XCP.zOAbGQxhFz39fRDo-WbuBBdo7pPBKkQQ__zBlwAC0LWKuJ2BcAPFBjof8yPTgPeP3k4WwRu8NmiCuWKCLqG-Fqp0glNCDKeWADM5w3n0RC6ae9Jue3A","version":2}} -->
